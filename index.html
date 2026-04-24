@@ -7,13 +7,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-  const USERS = { 'admin': 'admin' };
-  const ADMINS = ['admin']; // usernames who can import/update
+  const USERS  = { 'admin': 'admin' };
+  const ADMINS = ['admin'];
 
-  // ── STEP 1: Paste your Google Apps Script Web App URL below ──────────────
-  // Apps Script must use the JSONP-compatible doGet below — see setup guide
-  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzvX5yzXL6dB9ooLyy7WGQa4V7u5C9bWy0GGe-YIsfaxt-z1s30PG91GvYJ52Khw8sS/exec';
+  // ── CONFIG — fill these two values ───────────────────────────────────────
+  const GITHUB_USER = 'varunk-beep';        // your GitHub username
+  const GITHUB_REPO = 'teamstrata';         // your repo name
+  const DATA_FILE   = 'spv_data.json';      // data file (will be created by you once)
   // ─────────────────────────────────────────────────────────────────────────
+
+  // Raw URL everyone reads from — no CORS, always works
+  const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${DATA_FILE}`;
 </script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -484,6 +488,30 @@
 
 <!-- IMPORT MODAL -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeImport()">
+
+<!-- GITHUB SAVE GUIDE MODAL -->
+<div class="modal-bg" id="saveGuideBg" style="display:none;z-index:10000">
+  <div class="modal" style="max-width:500px">
+    <h2>📋 Save Data to GitHub</h2>
+    <p style="color:var(--muted);margin:12px 0 20px;line-height:1.6">
+      The JSON data has been <strong style="color:var(--accent)">copied to your clipboard</strong> and GitHub has opened in a new tab.<br><br>
+      In the GitHub tab:
+    </p>
+    <div style="background:var(--surface2);border-radius:10px;padding:16px 20px;line-height:2">
+      <div>1️⃣ &nbsp;Select <strong>all existing text</strong> in the editor (Ctrl+A)</div>
+      <div>2️⃣ &nbsp;<strong>Paste</strong> (Ctrl+V) the new JSON data</div>
+      <div>3️⃣ &nbsp;Click the green <strong>"Commit changes"</strong> button</div>
+      <div>4️⃣ &nbsp;Click <strong>"Commit changes"</strong> again to confirm</div>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin-top:16px">
+      ⏱ After committing, team members will see the updated data within <strong style="color:var(--text)">2–3 minutes</strong> (GitHub cache).
+    </p>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn primary" onclick="recheckData()">✓ I've committed — Refresh now</button>
+      <button class="btn" onclick="document.getElementById('saveGuideBg').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
   <div class="modal">
     <h2>Import Balance Data</h2>
     <p>Paste your Excel data or upload a CSV file. Data will be saved for the team.</p>
@@ -554,102 +582,65 @@ function setSyncStatus(msg, color) {
   el.style.color = color || 'var(--muted)';
 }
 
-// ─── GOOGLE SHEETS SYNC (CORS-safe) ──────────────────────────────────────────
+// ─── GITHUB DATA SYNC ────────────────────────────────────────────────────────
 
-// WRITE via hidden form → iframe (bypasses CORS completely)
-function pushToSheet(data, updatedAt) {
-  return new Promise((resolve) => {
-    if (!SHEET_URL) { resolve(false); return; }
-    setSyncStatus('⏫ Syncing…', 'var(--accent2)');
-
-    try {
-      // Remove old iframe if exists
-      const old = document.getElementById('_sheetFrame');
-      if (old) old.remove();
-
-      // Create hidden iframe as POST target
-      const iframe = document.createElement('iframe');
-      iframe.name = '_sheetFrame';
-      iframe.id   = '_sheetFrame';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-
-      // Create hidden form and submit
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = SHEET_URL;
-      form.target = '_sheetFrame';
-      form.style.display = 'none';
-
-      const input = document.createElement('input');
-      input.type  = 'hidden';
-      input.name  = 'payload';
-      input.value = JSON.stringify({ action: 'write', data, updatedAt });
-      form.appendChild(input);
-
-      document.body.appendChild(form);
-      form.submit();
-      form.remove();
-
-      // Assume success after short delay (iframe POST gives no response)
-      setTimeout(() => {
-        setSyncStatus('✓ Synced — team will see update within 5 min', 'var(--accent)');
-        resolve(true);
-      }, 2000);
-
-    } catch(e) {
-      setSyncStatus('⚠ Sync failed: ' + e.message, 'var(--danger)');
-      resolve(false);
+// READ — fetch spv_data.json from raw.githubusercontent.com (no CORS issues)
+async function fetchFromSheet() {
+  setSyncStatus('⏬ Loading…', 'var(--accent2)');
+  try {
+    const res = await fetch(RAW_URL + '?t=' + Date.now());
+    if (!res.ok) throw new Error('not found');
+    const obj = await res.json();
+    if (obj && obj.data && obj.data.length) {
+      setSyncStatus('✓ Live', 'var(--accent)');
+      return obj;
     }
-  });
+    setSyncStatus('— No data yet', 'var(--muted)');
+    return null;
+  } catch(e) {
+    setSyncStatus('⚠ Using local data', 'var(--warn)');
+    return null;
+  }
 }
 
-// READ via JSONP (bypasses CORS — no fetch needed)
-function fetchFromSheet() {
-  return new Promise((resolve) => {
-    if (!SHEET_URL) { resolve(null); return; }
-    setSyncStatus('⏬ Loading live data…', 'var(--accent2)');
+// WRITE — opens GitHub web editor pre-filled with new JSON so admin can commit in one click
+function pushToSheet(data, updatedAt) {
+  setSyncStatus('⏫ Opening GitHub to save…', 'var(--accent2)');
 
-    const cbName = '_sheetCb_' + Date.now();
-    const script = document.createElement('script');
-    let done = false;
+  const json = JSON.stringify({ data, updatedAt }, null, 2);
+  const encoded = encodeURIComponent(json);
 
-    // Timeout after 8 seconds
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      script.remove();
-      delete window[cbName];
-      setSyncStatus('⚠ Could not reach sheet', 'var(--warn)');
-      resolve(null);
-    }, 8000);
+  // GitHub web editor URL — opens the file for editing with content pre-filled
+  const githubEditUrl = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/edit/main/${DATA_FILE}`;
 
-    window[cbName] = (obj) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      script.remove();
-      delete window[cbName];
-      if (obj && obj.data && obj.data.length) {
-        setSyncStatus('✓ Live', 'var(--accent)');
-        resolve(obj);
-      } else {
-        setSyncStatus('— Sheet empty', 'var(--muted)');
-        resolve(null);
-      }
-    };
-
-    script.src = SHEET_URL + '?callback=' + cbName + '&t=' + Date.now();
-    script.onerror = () => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      delete window[cbName];
-      setSyncStatus('⚠ Sheet unreachable', 'var(--warn)');
-      resolve(null);
-    };
-    document.head.appendChild(script);
+  // Copy JSON to clipboard so admin can paste it in GitHub editor
+  navigator.clipboard.writeText(json).then(() => {
+    setSyncStatus('📋 JSON copied! Paste in GitHub tab that just opened.', 'var(--accent2)');
+  }).catch(() => {
+    setSyncStatus('⏫ Paste the JSON in the GitHub tab', 'var(--accent2)');
   });
+
+  // Open GitHub editor in new tab
+  window.open(githubEditUrl, '_blank');
+
+  // Show instruction modal
+  showSaveGuide();
+}
+
+function showSaveGuide() {
+  document.getElementById('saveGuideBg').style.display = 'flex';
+}
+
+async function recheckData() {
+  document.getElementById('saveGuideBg').style.display = 'none';
+  setSyncStatus('⏬ Checking GitHub…', 'var(--accent2)');
+  const fresh = await fetchFromSheet();
+  if (fresh && fresh.data.length) {
+    accounts = fresh.data;
+    updateTimestamp(fresh.updatedAt);
+    renderAll();
+    setSyncStatus('✓ Live — team can see latest data', 'var(--accent)');
+  }
 }
 
 // ─── STORAGE (localStorage fallback) ─────────────────────────────────────────
