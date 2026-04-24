@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPV Bank Dashboard — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -22,7 +24,7 @@
     position: fixed; inset: 0; z-index: 9999;
     background: #0d1117;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Sora', sans-serif;
+    font-family: 'Inter', sans-serif;
   }
   .login-box {
     background: #161b22;
@@ -49,7 +51,7 @@
     width: 100%; padding: 10px 14px;
     background: #0d1117; border: 1px solid #30363d;
     border-radius: 8px; color: #e6edf3; font-size: 14px;
-    font-family: 'Sora', sans-serif; outline: none;
+    font-family: 'Inter', sans-serif; outline: none;
     transition: border-color .15s;
   }
   .login-field input:focus { border-color: #388bfd; }
@@ -58,7 +60,7 @@
     width: 100%; padding: 11px;
     background: #388bfd; border: none; border-radius: 8px;
     color: #fff; font-size: 14px; font-weight: 600;
-    font-family: 'Sora', sans-serif; cursor: pointer;
+    font-family: 'Inter', sans-serif; cursor: pointer;
     margin-top: 8px; transition: background .15s;
   }
   .login-btn:hover { background: #2f7de8; }
@@ -72,8 +74,7 @@
     font-size: 11px; color: #7d8590;
   }
 </style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap');
-
+<style>
   :root {
     --bg: #0d1117;
     --surface: #161b22;
@@ -88,7 +89,7 @@
     --teal: #39c5cf;
     --purple: #a371f7;
     --mono: 'DM Mono', monospace;
-    --sans: 'Sora', sans-serif;
+    --sans: 'Inter', sans-serif;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -353,9 +354,9 @@
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-logo">
-      <div class="icon">🏦</div>
-      <h2>SPV Bank Dashboard</h2>
-      <p>Strata Finance · Internal Tool</p>
+      <img src="data:image/png;base64,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" alt="Strata" style="height:48px;width:auto;border-radius:6px;margin-bottom:12px;" />
+      <h2>STRATA SPV Bank Balance</h2>
+      <p>Finance Team · Internal Tool</p>
     </div>
     <div class="login-field">
       <label>Username</label>
@@ -400,14 +401,25 @@
     document.querySelector('.main')   && (document.querySelector('.main').style.display   = '');
     document.querySelector('.footer') && (document.querySelector('.footer').style.display = '');
   }
+
+  function doLogout() {
+    sessionStorage.removeItem('spv_auth');
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.querySelector('.topbar') && (document.querySelector('.topbar').style.display = 'none');
+    document.querySelector('.main')   && (document.querySelector('.main').style.display   = 'none');
+    document.querySelector('.footer') && (document.querySelector('.footer').style.display = 'none');
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginError').textContent = '';
+  }
 </script>
 
 <!-- TOP BAR -->
 <div class="topbar">
   <div class="brand">
-    <div class="logo">₹</div>
+    <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAB8ALYDASIAAhEBAxEB/8QAHAABAAIDAQEBAAAAAAAAAAAAAAMEBgcIAgUJ/8QAMhAAAQMDAQYEBgIDAQEAAAAAAQACAwQFEQYHCBITITEUUXGRIjIzQVJhFYEJFiMkcv/EABoBAQACAwEAAAAAAAAAAAAAAAABAwIEBQb/xAAvEQACAgEBBQUJAAMAAAAAAAAAAQIDEQQFEhUhMRNRUlOhMjM0QWFxgbHBFJHh/9oADAMBAAIRAxEAPwDjJERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAERXIo2GNpLAThbui0UtXJxi8YMZS3SmivcuP8Gpy4/waujwC7xL1MO1RRRXuXH+DU5cf4NTgF3iXqO1RRRXuXH+DU5cf4NTgF3iXqO1RRRXuXH+DU5cf4NTgF3iXqO1RRRXuXH+DU5cf4NTgF3iXqO1RRRXuXH+DU5cf4NTgF3iXqO1RRRXuXH+DVHUMYIiQ0Aqu7YltVcpuS5LPzJVibwVURFxSwIiIAiIgCIiAK9D9JvoqKvQ/Sb6LvbA99P7f0qt6HpEReqKQiIgCIiAIiIAiIgCIiAKOp+ifUKRFVfV2tUq84ysBPDyfPRfQ6eQUFZ8rfUry+q2M9PTK3fzj6f8AS+NmXgrIiLiFgREQBERAFeh+k30VFXofpN9F3tge+n9v6VW9D0iLpzZTusMuujKfVu0TVTdNUVXG2WCnbwNe1jvkdJJIeFpORhuCeo6g9F6PUamvTx3rGVJN9DmNF1frrdHpX6VlvuzPV/8AsL4WucKWXlvFRw92xyxnh4v0R1P3C562YaIuGvNf0OjaOpgoKysdIwSVIdwsLGOcQQBnPwkLCrW02wc4vkuv0Di0YqizPbJs+uGzLW0ulbnXUtdUxwRzGWmDgwh4yB8QBWGLYhONkVKPRkdAiIsgERWLdTOrbhTUbHNY6eVsTXO7AuIGT7o3gFdFtLbzsVvWyEWk3e8W64/yfN5fhQ8cHBw5zxAd+Idlq1V1WwtipweUGsBERWAKCs+VvqVOoKz5W+pXP2r8HP8AH7RlD2isiIvDmyEREAREQBXofpN9FRV6H6TfRd7YHvp/b+lVvQkY7ge12AcHOCv0C2j6apN5LYVYqjR+oKWkqKZzKgwvJ5QlEfC+GUN6tLSTg4PscrgW00FXdbpS2ygh51XVzMggjDgON7iA1uT06kgdVtPVmhdrmwU2u/Orqmzvrw4c221TnNjc0/TlI+AkjBAOQf6K7GuqVk4bs1Ga6fUri8F66Wzb1sGs9ytrP5KzWi4SMM1ZRFssBcMgFsozyyc4Pyk4Hktn7juoNmxr6O23O3OqNodVWVUkNfJTue7lFmTmQnoSA/8AfX9rPd0jahqHbDYdQ6c17bKW509JCxj6vw4bHUMk4gYpG/KXYGegHTOfM6L3dLZR6f3y22SjkBpaK43ClgJdklrGytaM/c4C0bJO2u2u1YnFZbXz5GS5NNG7N5bVGwWi1JfLXrGweK1eLdwx1Pgnvw50RMPxg46ZHosJ3QNkmhNoOxu91epLNFNcTXz0sNdxuElO3kx8LmjPDlpcXDIWA791urqbb5W11RSTRUtZRUzqaZzTwShsYa7hPY4IIIW6dxolu7pqlzSQRcKsgj7f+aNVSg6dBGdcnl4+fQnrLmar2w2bZBfjpzZnsXpIqrURuzaeeu5bzzmljg5zpnfMA7BOBjoSOi2beNAbu2wmxUEGvqU6gvdXHxf9o3TSS4+ZzYgQxjM9AT1/Z6rQG5zXUVBvFaYkrS1rJXzQRl3YSPhe1n9lxA/tZr/kDsd4ptrdJfp6aU2ust0UNNPjLA9hdxMz9j1Bx+1sWVy7eGlc3u4znPNv7kJ8t7BtzZHs43ddpF5n1Vo+2snp4IjBW2Wra4Mie4gsk4HHLT8LgCCWnJ7ELW2ipdj+i95LWtn1Zp6F8TLtTwafhZSGVlPIHnOBnp1LO+eys/46bHeP9u1DqPw8zLOLeKTnOBDJJjI1waPMgNdnyyPNax2wvbHvb3WR7g1rdTRFxP2AkYq4VN6iylzbSj38yc8k8HYW8jqLY3ZKiyRbVrN/JPlbM6g/8jpuAAs4+xGM5b7Lnrd82H6Y2m6o1Jra5tkpNCUtymbbqVrjDz2hxcA45yyNjC3ODnPTIwVk/wDkft9c/wD0+6MpZXUUQqYZJw3LWPcYy1pP2yAcehWRbt0U2pty+9af07K1t25NwpC1h+IyvBc0H/6a9o/ta9OadFGyEmnJ4f05v/RL5ywz4dz1JufVle/SrtPwQxF/IF0p6SRkbTnHEJgePH34sEffspt5XZFs/wBDbtz6yw2eimuNPLTRx3bgHPmY6QfEXDoctPcdCuNzb68XL+MNFUiu5nK8Nync3jzjh4cZznphdv7wlpulh3IrXZr0XG40cFuiqA45LXBzfhJ/Xb+ltXU/49tSjY3lrk2Yp5T5HC6grPlb6lTqCs+VvqVv7V+Dn+P2jGHtFZEReHNkIiIAiIgCvQ/Sb6Kir0P0m+i72wPfT+39KrehJG98cjZI3uY9pDmuacEEdiCuqtnm99NT6cisu0PS38+YmNZ4yB7eKYDsZI3jhLu3UEZ8lymi9FqNLVqElYs4KlJrodaaw3vqSDT09r2c6LZZZ5gQ2pqOWGwkjHE2JgwXeWTjt0PZcw2HUV5seqaXU9urpI7tTVIqo6gnicZM5JOe+euQe+SvkosaNHTRFqC69Q5NnWNRvgwXbTbqDUWzulq6x0LozKypBjDy3HG1r2Et9Mn1WFbA9vtu2abMrtpCq03VXGWvqJpm1EdS1jWB8TWYIIOccOf7Wg0Va2bp1FwUeT+rJ32S0lRPSVUNXSzSQVELxJFJG7hcxwOQ4EdiCuq9G74GdNx2raDo2O/TxNDTUwvYBPgY4nxvBAd+wcd+gXJ6K3UaSrUJKxdCFJrodaxb5LqXUMYt+hoKXTkMD2soo52tlfISCHlwbwtA+L4QOuc5XOG0/VI1jtFvWrYaV9D/ACVWahsPM4jFnHTiAGe3dYyixo0VNEt6tYYcm+p1NorfAuNJpaCzay0hBqGaGNsZqhUBhnA7GRjmuBd0HUdz1wFrfRW3fUGitqd/1dpyihjtd7rZKips0rv+Ja55c0AtA4XNzgOA/ojotQoojs/Tx3sR69Sd5nXty3wrAYXXG3bMIBfi0cNRUTsLWux34gzjI/XT1CwDatvJ3DaJsjOi7vp9jLhK+KSe4Rz4Y5zH8XSPh6A9u5WgUWFezNNW1JR5rn1Yc2woKz5W+pU6grPlb6lRtX4Of4/aEPaKyIi8ObIREQBERAFK2d7WhoxgfpRIrab7KXmt4IaT6k3iJPJvsniJPJvsoUWxxHVeYyNyPcTeIk8m+yeIk8m+yhROI6rzGNyPcTeIk8m+yeIk8m+yhROI6rzGNyPcTeIk8m+yeIk8m+yhROI6rzGNyPcTeIk8m+yeIk8m+yhROI6rzGNyPcTeIk8m+yeIk8m+yhROI6rzGNyPcTeIk8m+yeIk8m+yhROI6rzGNyPcTeIk8m+y8SSukADsdPJeEWFmt1FkXGc20wopBERapkEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREB//2Q==" alt="Strata" style="height:36px;width:auto;border-radius:4px;" />
     <div>
-      <h1>Bank Balance Tracker</h1>
+      <h1>STRATA SPV Bank Balance</h1>
       <div class="subtitle">Treasury · Finance Team Dashboard</div>
     </div>
   </div>
@@ -416,6 +428,7 @@
     <span class="tag" id="lastUpdated">No data</span>
     <button class="btn" onclick="openImport()">⬆ Import Data</button>
     <button class="btn" onclick="exportCSV()">⬇ Export</button>
+    <button class="btn" onclick="doLogout()" style="border-color:var(--danger);color:var(--danger);">⏻ Logout</button>
   </div>
 </div>
 
@@ -482,7 +495,7 @@
 </div>
 
 <div class="footer">
-  <span>Bank Balance Tracker · Finance Team</span>
+  <span>STRATA SPV Bank Balance · Finance Team</span>
   <span id="footerCount">—</span>
 </div>
 
