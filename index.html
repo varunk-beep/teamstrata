@@ -8,6 +8,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   const USERS = { 'admin': 'admin' };
+  const ADMINS = ['admin']; // usernames who can import/update
+
+  // ── STEP 1: Paste your Google Apps Script Web App URL below ──────────────
+  // Apps Script must use the JSONP-compatible doGet below — see setup guide
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbw8bUo5SjwlmShUuHVSCIKn1rYXYHpocdlL35rmNsBv037Ntuz2HtahEP6-Yx453XSK/exec';
+  // ─────────────────────────────────────────────────────────────────────────
 </script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -347,36 +353,31 @@
 </div>
 
 <script>
-  // Hide dashboard until logged in
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelector('.topbar') && (document.querySelector('.topbar').style.display = 'none');
-    document.querySelector('.main')   && (document.querySelector('.main').style.display   = 'none');
-    document.querySelector('.footer') && (document.querySelector('.footer').style.display = 'none');
-    // Check if already logged in this session
-    if (sessionStorage.getItem('spv_auth') === 'true') unlock();
-  });
-
   function doLogin() {
     const u = document.getElementById('loginUser').value.trim();
     const p = document.getElementById('loginPass').value;
     if (USERS[u] && USERS[u] === p) {
       sessionStorage.setItem('spv_auth', 'true');
-      unlock();
+      sessionStorage.setItem('spv_user', u);
+      unlock(u);
     } else {
       document.getElementById('loginError').textContent = '✖ Incorrect username or password';
       document.getElementById('loginPass').value = '';
     }
   }
 
-  function unlock() {
+  function unlock(u) {
+    currentUser = u || sessionStorage.getItem('spv_user') || '';
     document.getElementById('loginScreen').style.display = 'none';
     document.querySelector('.topbar') && (document.querySelector('.topbar').style.display = '');
     document.querySelector('.main')   && (document.querySelector('.main').style.display   = '');
     document.querySelector('.footer') && (document.querySelector('.footer').style.display = '');
+    initDashboard();
   }
 
   function doLogout() {
     sessionStorage.removeItem('spv_auth');
+    sessionStorage.removeItem('spv_user');
     document.getElementById('loginScreen').style.display = 'flex';
     document.querySelector('.topbar') && (document.querySelector('.topbar').style.display = 'none');
     document.querySelector('.main')   && (document.querySelector('.main').style.display   = 'none');
@@ -385,6 +386,14 @@
     document.getElementById('loginPass').value = '';
     document.getElementById('loginError').textContent = '';
   }
+
+  // Check if already logged in this session
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('.topbar') && (document.querySelector('.topbar').style.display = 'none');
+    document.querySelector('.main')   && (document.querySelector('.main').style.display   = 'none');
+    document.querySelector('.footer') && (document.querySelector('.footer').style.display = 'none');
+    if (sessionStorage.getItem('spv_auth') === 'true') unlock();
+  });
 </script>
 
 <!-- TOP BAR -->
@@ -399,7 +408,8 @@
   <div class="topbar-right">
     <span class="tag live" id="liveTag">Live</span>
     <span class="tag" id="lastUpdated">No data</span>
-    <button class="btn" onclick="openImport()">⬆ Import Data</button>
+    <span class="tag" id="syncStatus" style="display:none"></span>
+    <button class="btn" id="importBtn" onclick="openImport()" style="display:none">⬆ Import Data</button>
     <button class="btn" onclick="exportCSV()">⬇ Export</button>
     <button class="btn" onclick="doLogout()" style="border-color:var(--danger);color:var(--danger);">⏻ Logout</button>
   </div>
@@ -531,12 +541,124 @@ const LOW_THRESHOLD = 100000;   // < ₹1L = Low
 const CRIT_THRESHOLD = 10000;   // < ₹10K or negative = Critical
 
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
-function save(data) {
+// ─── CURRENT USER ────────────────────────────────────────────────────────────
+let currentUser = '';
+
+function isAdmin() { return ADMINS.includes(currentUser); }
+
+function setSyncStatus(msg, color) {
+  const el = document.getElementById('syncStatus');
+  el.style.display = '';
+  el.textContent = msg;
+  el.style.borderColor = color || 'var(--border)';
+  el.style.color = color || 'var(--muted)';
+}
+
+// ─── GOOGLE SHEETS SYNC (CORS-safe) ──────────────────────────────────────────
+
+// WRITE via hidden form → iframe (bypasses CORS completely)
+function pushToSheet(data, updatedAt) {
+  return new Promise((resolve) => {
+    if (!SHEET_URL) { resolve(false); return; }
+    setSyncStatus('⏫ Syncing…', 'var(--accent2)');
+
+    try {
+      // Remove old iframe if exists
+      const old = document.getElementById('_sheetFrame');
+      if (old) old.remove();
+
+      // Create hidden iframe as POST target
+      const iframe = document.createElement('iframe');
+      iframe.name = '_sheetFrame';
+      iframe.id   = '_sheetFrame';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      // Create hidden form and submit
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = SHEET_URL;
+      form.target = '_sheetFrame';
+      form.style.display = 'none';
+
+      const input = document.createElement('input');
+      input.type  = 'hidden';
+      input.name  = 'payload';
+      input.value = JSON.stringify({ action: 'write', data, updatedAt });
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+
+      // Assume success after short delay (iframe POST gives no response)
+      setTimeout(() => {
+        setSyncStatus('✓ Synced — team will see update within 5 min', 'var(--accent)');
+        resolve(true);
+      }, 2000);
+
+    } catch(e) {
+      setSyncStatus('⚠ Sync failed: ' + e.message, 'var(--danger)');
+      resolve(false);
+    }
+  });
+}
+
+// READ via JSONP (bypasses CORS — no fetch needed)
+function fetchFromSheet() {
+  return new Promise((resolve) => {
+    if (!SHEET_URL) { resolve(null); return; }
+    setSyncStatus('⏬ Loading live data…', 'var(--accent2)');
+
+    const cbName = '_sheetCb_' + Date.now();
+    const script = document.createElement('script');
+    let done = false;
+
+    // Timeout after 8 seconds
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      script.remove();
+      delete window[cbName];
+      setSyncStatus('⚠ Could not reach sheet', 'var(--warn)');
+      resolve(null);
+    }, 8000);
+
+    window[cbName] = (obj) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      script.remove();
+      delete window[cbName];
+      if (obj && obj.data && obj.data.length) {
+        setSyncStatus('✓ Live', 'var(--accent)');
+        resolve(obj);
+      } else {
+        setSyncStatus('— Sheet empty', 'var(--muted)');
+        resolve(null);
+      }
+    };
+
+    script.src = SHEET_URL + '?callback=' + cbName + '&t=' + Date.now();
+    script.onerror = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      delete window[cbName];
+      setSyncStatus('⚠ Sheet unreachable', 'var(--warn)');
+      resolve(null);
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// ─── STORAGE (localStorage fallback) ─────────────────────────────────────────
+function saveLocal(data) {
   const obj = { data, updatedAt: new Date().toISOString() };
   try { localStorage.setItem('bankDash_v2', JSON.stringify(obj)); } catch(e) {}
 }
 
-function load() {
+function loadLocal() {
   try {
     const raw = localStorage.getItem('bankDash_v2');
     if (raw) {
@@ -837,6 +959,7 @@ function loadFile(e) {
 }
 
 function processImport() {
+  if (!isAdmin()) return;
   let parsed = [];
   if (activeTab === 'sample') {
     parsed = SAMPLE;
@@ -855,11 +978,14 @@ function processImport() {
       return;
     }
   }
+  const now = new Date().toISOString();
   accounts = parsed;
-  save(accounts);
-  updateTimestamp(new Date().toISOString());
+  saveLocal(accounts);
+  updateTimestamp(now);
   renderAll();
   closeImport();
+  // Push to Google Sheet so team sees it
+  pushToSheet(accounts, now);
 }
 
 function exportCSV() {
@@ -887,15 +1013,34 @@ if (dropZone) {
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
-const loaded = load();
-if (loaded && accounts.length) {
-  renderAll();
-} else {
-  // Load real SPV data (21-Jan-2026)
-  accounts = SAMPLE;
-  save(accounts);
-  updateTimestamp('2026-01-21T00:00:00.000Z');
-  renderAll();
+async function initDashboard() {
+  // Show/hide Import button based on role
+  document.getElementById('importBtn').style.display = isAdmin() ? '' : 'none';
+
+  // Try Google Sheet first, fall back to localStorage, then SAMPLE
+  const sheetData = await fetchFromSheet();
+  if (sheetData && sheetData.data.length) {
+    accounts = sheetData.data;
+    updateTimestamp(sheetData.updatedAt);
+    renderAll();
+  } else if (loadLocal() && accounts.length) {
+    renderAll();
+  } else {
+    accounts = SAMPLE;
+    saveLocal(accounts);
+    updateTimestamp('2026-01-21T00:00:00.000Z');
+    renderAll();
+  }
+
+  // Auto-refresh every 5 minutes for all users
+  setInterval(async () => {
+    const fresh = await fetchFromSheet();
+    if (fresh && fresh.data.length) {
+      accounts = fresh.data;
+      updateTimestamp(fresh.updatedAt);
+      renderAll();
+    }
+  }, 5 * 60 * 1000);
 }
 </script>
 </body>
