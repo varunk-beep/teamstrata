@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bank Balance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2330;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #2ea043;
+    --accent2: #388bfd;
+    --warn: #d29922;
+    --danger: #f85149;
+    --teal: #39c5cf;
+    --purple: #a371f7;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Sora', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar .brand {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topbar .logo {
+    width: 32px; height: 32px; background: var(--accent);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .topbar h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+  .topbar .subtitle { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .tag {
+    font-family: var(--mono); font-size: 11px; padding: 3px 10px;
+    border-radius: 20px; border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .tag.live { border-color: var(--accent); color: var(--accent); }
+  .tag.live::before { content: '● '; font-size: 8px; }
+
+  .btn {
+    font-family: var(--sans); font-size: 13px; font-weight: 500;
+    padding: 7px 16px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text); transition: all .15s;
+  }
+  .btn:hover { background: var(--border); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #3fb950; }
+
+  /* MAIN LAYOUT */
+  .main { padding: 24px 28px; max-width: 1600px; margin: 0 auto; }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .kpi.green::before { background: var(--accent); }
+  .kpi.blue::before { background: var(--accent2); }
+  .kpi.amber::before { background: var(--warn); }
+  .kpi.red::before { background: var(--danger); }
+  .kpi.teal::before { background: var(--teal); }
+
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+  .kpi-value { font-family: var(--mono); font-size: 22px; font-weight: 500; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .kpi-badge {
+    display: inline-block; font-size: 10px; padding: 2px 7px;
+    border-radius: 20px; margin-top: 4px; font-family: var(--mono);
+  }
+  .kpi-badge.up { background: rgba(46,160,67,.15); color: var(--accent); }
+  .kpi-badge.down { background: rgba(248,81,73,.15); color: var(--danger); }
+  .kpi-badge.warn { background: rgba(210,153,34,.15); color: var(--warn); }
+
+  /* CHARTS + TABLE ROW */
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; letter-spacing: .3px; }
+  .card-meta { font-size: 11px; color: var(--muted); }
+
+  /* CHART */
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* PIE WRAP */
+  .pie-wrap { position: relative; height: 180px; }
+
+  /* TABLE */
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .table-toolbar {
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .search-box {
+    flex: 1; min-width: 180px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--sans); font-size: 13px;
+    padding: 7px 12px; border-radius: 8px; outline: none;
+  }
+  .search-box:focus { border-color: var(--accent2); }
+  .search-box::placeholder { color: var(--muted); }
+
+  select.filter {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--sans); font-size: 13px;
+    padding: 7px 12px; border-radius: 8px; outline: none; cursor: pointer;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  thead th {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .6px; padding: 10px 16px; text-align: left;
+    cursor: pointer; white-space: nowrap; user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  thead th.sorted { color: var(--accent2); }
+  thead th .sort-icon { margin-left: 4px; font-size: 10px; }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(48,54,61,.5);
+    transition: background .1s;
+  }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr:last-child { border-bottom: none; }
+  td { padding: 11px 16px; font-size: 13px; }
+  td.num { font-family: var(--mono); text-align: right; }
+
+  .bank-name { font-weight: 500; }
+  .ac-no { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  .badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 20px; font-weight: 500; white-space: nowrap;
+  }
+  .badge-ok { background: rgba(46,160,67,.15); color: var(--accent); }
+  .badge-low { background: rgba(210,153,34,.15); color: var(--warn); }
+  .badge-crit { background: rgba(248,81,73,.15); color: var(--danger); }
+
+  .balance-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .mini-bar { height: 4px; border-radius: 2px; background: var(--border); flex: 1; min-width: 40px; }
+  .mini-bar-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+
+  /* MODAL */
+  .modal-bg {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.7); z-index: 200;
+    align-items: center; justify-content: center;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px;
+    width: 90%; max-width: 640px; max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .modal p { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+  .format-hint {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    line-height: 1.8;
+  }
+
+  textarea.csv-input {
+    width: 100%; height: 200px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 12px; border-radius: 8px; outline: none; resize: vertical;
+  }
+  textarea.csv-input:focus { border-color: var(--accent2); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
+
+  .tab-bar { display: flex; gap: 2px; margin-bottom: 12px; }
+  .tab {
+    font-size: 12px; padding: 6px 14px; border-radius: 6px;
+    cursor: pointer; color: var(--muted); transition: .15s;
+  }
+  .tab.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+  .tab:hover { color: var(--text); }
+
+  .file-drop {
+    border: 2px dashed var(--border); border-radius: 8px; padding: 32px;
+    text-align: center; cursor: pointer; color: var(--muted); transition: .15s;
+  }
+  .file-drop:hover { border-color: var(--accent2); color: var(--text); }
+  .file-drop input { display: none; }
+  .file-drop .icon { font-size: 32px; margin-bottom: 8px; }
+
+  .legend-list { display: flex; flex-direction: column; gap: 6px; }
+  .legend-item {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; padding: 4px 0;
+    border-bottom: 1px solid rgba(48,54,61,.4);
+  }
+  .legend-item:last-child { border-bottom: none; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state h3 { color: var(--text); margin-bottom: 6px; }
+
+  .footer {
+    padding: 16px 28px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; color: var(--muted);
+  }
+
+  @media (max-width: 900px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .main { padding: 16px; }
+    .topbar { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">₹</div>
+    <div>
+      <h1>Bank Balance Tracker</h1>
+      <div class="subtitle">Treasury · Finance Team Dashboard</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="tag live" id="liveTag">Live</span>
+    <span class="tag" id="lastUpdated">No data</span>
+    <button class="btn" onclick="openImport()">⬆ Import Data</button>
+    <button class="btn" onclick="exportCSV()">⬇ Export</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi green">
+      <div class="kpi-label">Total Balance</div>
+      <div class="kpi-value" id="kpiTotal">—</div>
+      <div class="kpi-sub">Across all accounts</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-label">SPVs Above ₹20L</div>
+      <div class="kpi-value" id="kpiAccounts">—</div>
+      <div class="kpi-sub">High balance accounts</div>
+    </div>
+    <div class="kpi teal">
+      <div class="kpi-label">Highest Balance</div>
+      <div class="kpi-value" id="kpiHigh">—</div>
+      <div class="kpi-sub" id="kpiHighBank">—</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-label">High Balance Corpus</div>
+      <div class="kpi-value" id="kpiLow">—</div>
+      <div class="kpi-sub" id="kpiLowBank">Sum of accounts &gt;₹20L</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Low Balance Alerts</div>
+      <div class="kpi-value" id="kpiAlerts">—</div>
+      <div class="kpi-sub">Below threshold</div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-toolbar">
+      <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;margin-right:4px;">
+        <div id="tabAll" onclick="setView('all')" style="font-size:12px;font-weight:500;padding:5px 14px;border-radius:6px;cursor:pointer;background:var(--accent2);color:#fff;">All Accounts</div>
+        <div id="tabHigh" onclick="setView('high')" style="font-size:12px;font-weight:500;padding:5px 14px;border-radius:6px;cursor:pointer;color:var(--muted);">🔔 High Balance &gt;₹20L</div>
+      </div>
+      <input class="search-box" id="searchInput" placeholder="Search bank, account, type..." oninput="renderTable()" />
+      <select class="filter" id="statusFilter" onchange="renderTable()">
+        <option value="all">All Status</option>
+        <option value="ok">OK</option>
+        <option value="low">Low</option>
+        <option value="critical">Critical</option>
+      </select>
+      <select class="filter" id="bankFilter" onchange="renderTable()">
+        <option value="all">All Banks</option>
+      </select>
+      <span style="font-size:12px;color:var(--muted);margin-left:auto;" id="rowCount">— accounts</span>
+    </div>
+    <div id="tableWrap">
+      <div class="empty-state">
+        <div class="icon">🏦</div>
+        <h3>No data loaded yet</h3>
+        <p>Click <strong>Import Data</strong> above to paste your Excel data</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>Bank Balance Tracker · Finance Team</span>
+  <span id="footerCount">—</span>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeImport()">
+  <div class="modal">
+    <h2>Import Balance Data</h2>
+    <p>Paste your Excel data or upload a CSV file. Data will be saved for the team.</p>
+
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('paste')">Paste from Excel</div>
+      <div class="tab" onclick="switchTab('file')">Upload CSV/Excel</div>
+      <div class="tab" onclick="switchTab('sample')">Load Sample Data</div>
+    </div>
+
+    <div id="tabPaste">
+      <div class="format-hint">
+        Expected columns (copy-paste directly from Excel):<br>
+        <strong>Bank Name | Account Number | Account Type | Balance | Currency</strong><br>
+        — Header row is auto-detected and skipped<br>
+        — Commas, tabs, or pipe separators all accepted
+      </div>
+      <textarea class="csv-input" id="csvInput" placeholder="Paste your Excel data here…
+Example:
+Bank Name	Account No	Type	Balance	Currency
+HDFC Bank	HDFC001	Current	4500000	INR
+SBI	SBI002	Savings	1200000	INR
+..."></textarea>
+    </div>
+
+    <div id="tabFile" style="display:none">
+      <div class="file-drop" onclick="document.getElementById('fileIn').click()" id="dropZone">
+        <input type="file" id="fileIn" accept=".xls,.xlsx,.csv,.txt" onchange="loadFile(event)" />
+        <div class="icon">📊</div>
+        <div style="font-weight:500;margin-bottom:4px;">Click to upload your daily XLS / XLSX file</div>
+        <div style="font-size:12px;color:var(--muted);">Supports your bank export (.xls, .xlsx) or CSV — drag &amp; drop also works</div>
+        <div style="font-size:11px;color:var(--accent);margin-top:6px;">Columns detected: Account Number · Customer Name · Currency · Available Balance</div>
+      </div>
+    </div>
+
+    <div id="tabSample" style="display:none">
+      <p style="color:var(--muted);font-size:13px;">Reload the <strong style="color:var(--text)">21-Jan-2026 SPV snapshot</strong> — 49 accounts across Evernest / Everstrat / Terrawave / Dhruvi entities, total corpus ₹3.03 Cr.</p>
+    </div>
+
+    <div style="margin-top:12px;font-size:12px;color:var(--muted);" id="importStatus"></div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeImport()">Cancel</button>
+      <button class="btn primary" onclick="processImport()">Import & Update Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let accounts = [];
+let sortCol = 'balance';
+let sortDir = -1;
+const LOW_THRESHOLD = 100000;   // < ₹1L = Low
+const CRIT_THRESHOLD = 10000;   // < ₹10K or negative = Critical
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+function save(data) {
+  const obj = { data, updatedAt: new Date().toISOString() };
+  try { localStorage.setItem('bankDash_v2', JSON.stringify(obj)); } catch(e) {}
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem('bankDash_v2');
+    if (raw) {
+      const obj = JSON.parse(raw);
+      accounts = obj.data || [];
+      updateTimestamp(obj.updatedAt);
+      return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+function updateTimestamp(iso) {
+  const d = new Date(iso);
+  const s = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) + ' ' +
+            d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('lastUpdated').textContent = 'Updated: ' + s;
+}
+
+// ─── PARSE CSV / TSV ──────────────────────────────────────────────────────────
+function parseRaw(raw) {
+  const lines = raw.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const delim = lines[0].includes('\t') ? '\t' : lines[0].includes('|') ? '|' : ',';
+  const headers = lines[0].split(delim).map(h => h.trim().toLowerCase());
+
+  // Try to find column indices flexibly
+  const findCol = (...keys) => {
+    for (const k of keys) {
+      const i = headers.findIndex(h => h.includes(k));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iBank    = findCol('bank', 'name');
+  const iAcNo    = findCol('account no', 'ac no', 'account number', 'acno', 'number');
+  const iType    = findCol('type', 'account type');
+  const iBalance = findCol('balance', 'amount', 'bal');
+  const iCur     = findCol('currency', 'cur');
+
+  // If no recognizable header, treat all lines as data with positional fallback
+  const dataStart = (iBalance >= 0 || iBank >= 0) ? 1 : 0;
+
+  const result = [];
+  for (let i = dataStart; i < lines.length; i++) {
+    const cols = lines[i].split(delim).map(c => c.trim().replace(/^["']|["']$/g,''));
+    if (cols.length < 2) continue;
+    const balRaw = (iBalance >= 0 ? cols[iBalance] : cols[cols.length-1] || '0')
+                    .replace(/[₹,\s]/g, '');
+    const balance = parseFloat(balRaw) || 0;
+    result.push({
+      bank:     iBank    >= 0 ? cols[iBank]    : cols[0] || `Bank ${i}`,
+      accountNo:iAcNo    >= 0 ? cols[iAcNo]    : cols[1] || `AC${i}`,
+      type:     iType    >= 0 ? cols[iType]    : 'Current',
+      balance,
+      currency: iCur     >= 0 ? cols[iCur]     : 'INR',
+      status:   balance <= CRIT_THRESHOLD ? 'critical' : balance <= LOW_THRESHOLD ? 'low' : 'ok',
+    });
+  }
+  return result;
+}
+
+// ─── REAL SPV BANK DATA (loaded from SPV_Bank_balances_21_01_26.xls) ──────────
+const SAMPLE = [{"bank": "EVERNEST BARON PRIVATE LIMITED", "accountNo": "50200063758393", "type": "Current", "balance": 6206330.42, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST PROPERTIES PRIVATE LIMITED", "accountNo": "50200058477340", "type": "Current", "balance": 4677342.03, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST OFFICE HOLDINGS PVT LTD", "accountNo": "50200060653139", "type": "Current", "balance": 3814984.37, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST COMMERCIAL PARKS PVT LTD", "accountNo": "50200050983112", "type": "Current", "balance": 2663662.73, "currency": "INR", "status": "ok"}, {"bank": "TERRAWAVE PROJECTS PVT LTD", "accountNo": "50200087194550", "type": "Current", "balance": 2128568.37, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST DEVCON PRIVATE LIMITED", "accountNo": "50200065984552", "type": "Current", "balance": 1673009.87, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST ENCLAVE PRIVATE LIMITED", "accountNo": "50200082395591", "type": "Current", "balance": 1094218.8, "currency": "INR", "status": "ok"}, {"bank": "DHRUVI REAL ESTATE PRIVATE LIMITED", "accountNo": "50200057512468", "type": "Current", "balance": 1061107.48, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST COMMERCIAL PROPERTIES P L", "accountNo": "50200054353888", "type": "Current", "balance": 652039.57, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST GAINS PROPERTIES PRIVATE LTD", "accountNo": "50200047878481", "type": "Current", "balance": 631412.88, "currency": "INR", "status": "ok"}, {"bank": "EVERSTRAT PEAK PRIVATE LIMITED", "accountNo": "50200084858711", "type": "Current", "balance": 587406.11, "currency": "INR", "status": "ok"}, {"bank": "EVERSTRAT TOWERS PRIVATE LIMITED", "accountNo": "50200084858661", "type": "Current", "balance": 582922.97, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST INFRA PVT LTD", "accountNo": "50200082360515", "type": "Current", "balance": 577159.65, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST COMMERCIAL ASSETS PVT LTD", "accountNo": "50200051977022", "type": "Current", "balance": 439027.28, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST PARKS PRIVATE LIMITED", "accountNo": "50200056722961", "type": "Current", "balance": 436565.64, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST SPACES PVT LTD", "accountNo": "50200082360630", "type": "Current", "balance": 392847.58, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST PINNACLE PRIVATE LIMITED", "accountNo": "50200067869982", "type": "Current", "balance": 381347.08, "currency": "INR", "status": "ok"}, {"bank": "NV SPACES AND REALTY PRIVATE LIMITED", "accountNo": "50200075741147", "type": "Current", "balance": 337044.1, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST GROWTH PRIVATE LIMITED", "accountNo": "50200082396897", "type": "Current", "balance": 320622.51, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST HEIGHTS PRIVATE LIMITED", "accountNo": "50200067781232", "type": "Current", "balance": 289996.69, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST PROPERTY HOLDINGS PVT LTD", "accountNo": "50200058473189", "type": "Current", "balance": 243964.77, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST REALM PRIVATE LIMITED", "accountNo": "50200076718253", "type": "Current", "balance": 232772.92, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST INDUSTRIAL PARK PRIVATE LIMITED", "accountNo": "50200060659897", "type": "Current", "balance": 209435.9, "currency": "INR", "status": "ok"}, {"bank": "TERRAWAVE PROJECTS PRIVATE LIMITED", "accountNo": "50200083335960", "type": "Current", "balance": 147586.0, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST SHELTER PRIVATE LIMITED", "accountNo": "50200058473192", "type": "Current", "balance": 136103.41, "currency": "INR", "status": "ok"}, {"bank": "EVERNEST ESTATES PRIVATE LIMITED", "accountNo": "50200057833040", "type": "Current", "balance": 95222.02, "currency": "INR", "status": "low"}, {"bank": "EVERNEST INFRATECH PRIVATE LIMITED", "accountNo": "50200076689932", "type": "Current", "balance": 81395.59, "currency": "INR", "status": "low"}, {"bank": "EVERNEST SUMMIT PRIVATE LIMITED", "accountNo": "50200065108866", "type": "Current", "balance": 75732.62, "currency": "INR", "status": "low"}, {"bank": "EVERNEST ASSETS PRIVATE LIMITED", "accountNo": "50200051975717", "type": "Current", "balance": 60150.64, "currency": "INR", "status": "low"}, {"bank": "EVERNEST MANSION PRIVATE LIMITED", "accountNo": "50200082419321", "type": "Current", "balance": 57818.38, "currency": "INR", "status": "low"}, {"bank": "EVERNEST SPHERES PRIVATE LIMITED", "accountNo": "50200049539225", "type": "Current", "balance": 28511.0, "currency": "INR", "status": "low"}, {"bank": "EVERSTRAT OPULANCE PRIVATE LIMITED", "accountNo": "50200084861346", "type": "Current", "balance": 14460.75, "currency": "INR", "status": "low"}, {"bank": "EVERNEST EVOLVE PVT LTD", "accountNo": "50200075595700", "type": "Current", "balance": 11114.55, "currency": "INR", "status": "low"}, {"bank": "EVERSTRAT ASHVA PRIVATE LIMITED", "accountNo": "50200073489271", "type": "Current", "balance": 1.94, "currency": "INR", "status": "critical"}, {"bank": "EVERSTRAT MOET PVT LTD-ACCOUNTS", "accountNo": "50200097735358", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERSTRAT MOET PRIVATE LIMITED", "accountNo": "50200092636934", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERSTRAT TOWERS PVT LTD-ACCOUNTS", "accountNo": "50200089485491", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERSTRAT PEAK PVT LTD-ACCOUNTS", "accountNo": "50200088743008", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST MANSION PVT LTD-ACCOUNTS", "accountNo": "50200088697820", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERSTRAT OPULANCE PVT LTD ACCOUNTS", "accountNo": "50200088668675", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST REALM PRIVATE LIMITED", "accountNo": "50200082922340", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST INFRA PVT LTD", "accountNo": "50200082487098", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST EVOLVE PVT LTD", "accountNo": "50200082487059", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST SPACES PVT LTD", "accountNo": "50200082468901", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST SUMMIT PRIVATE LIMITED", "accountNo": "50200067782185", "type": "Current", "balance": 0.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST INFRATECH PRIVATE LIMITED", "accountNo": "50200082926313", "type": "Current", "balance": -3540.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST GROWTH PVT LTD-ACCOUNTS", "accountNo": "50200085639998", "type": "Current", "balance": -4160.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST ENCLAVE PVT LTD-ACCOUNTS", "accountNo": "50200085554652", "type": "Current", "balance": -9350.0, "currency": "INR", "status": "critical"}, {"bank": "EVERNEST SPHERES PVT LTD ACCOUNTS", "accountNo": "50200086038315", "type": "Current", "balance": -21240.0, "currency": "INR", "status": "critical"}];
+
+// ─── FORMAT ──────────────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n >= 1e7) return '₹' + (n/1e7).toFixed(2) + ' Cr';
+  if (n >= 1e5) return '₹' + (n/1e5).toFixed(2) + ' L';
+  return '₹' + n.toLocaleString('en-IN');
+}
+function fmtFull(n) {
+  return '₹' + n.toLocaleString('en-IN');
+}
+
+// ─── KPI UPDATE ───────────────────────────────────────────────────────────────
+const HIGH_BAL = 2000000; // ₹20L
+
+function updateKPIs() {
+  if (!accounts.length) return;
+  const total = accounts.reduce((s,a) => s+a.balance, 0);
+  const sorted = [...accounts].sort((a,b) => b.balance - a.balance);
+  const alerts = accounts.filter(a => a.status !== 'ok').length;
+  const highList = accounts.filter(a => a.balance >= HIGH_BAL);
+  const highCorpus = highList.reduce((s,a) => s+a.balance, 0);
+
+  document.getElementById('kpiTotal').textContent = fmt(total);
+  document.getElementById('kpiAccounts').textContent = highList.length;
+  document.getElementById('kpiHigh').textContent = fmt(sorted[0].balance);
+  document.getElementById('kpiHighBank').textContent = sorted[0].bank;
+  document.getElementById('kpiLow').textContent = fmt(highCorpus);
+  document.getElementById('kpiAlerts').textContent = alerts;
+  document.getElementById('footerCount').textContent = accounts.length + ' accounts · total ' + fmt(total);
+}
+
+// ─── TABLE ───────────────────────────────────────────────────────────────────
+let currentView = 'all';
+
+function setView(v) {
+  currentView = v;
+  const active = 'font-size:12px;font-weight:500;padding:5px 14px;border-radius:6px;cursor:pointer;';
+  document.getElementById('tabAll').style.cssText  = active + (v==='all'  ? 'background:var(--accent2);color:#fff;' : 'color:var(--muted);');
+  document.getElementById('tabHigh').style.cssText = active + (v==='high' ? 'background:var(--purple);color:#fff;'  : 'color:var(--muted);');
+  renderTable();
+}
+
+function renderTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const statusF = document.getElementById('statusFilter').value;
+  const bankF = document.getElementById('bankFilter').value;
+
+  let rows = accounts.filter(a => {
+    if (currentView === 'high' && a.balance < HIGH_BAL) return false;
+    if (statusF !== 'all' && a.status !== statusF) return false;
+    if (bankF !== 'all' && a.bank !== bankF) return false;
+    if (search && !`${a.bank} ${a.accountNo} ${a.type}`.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  rows.sort((a,b) => {
+    const av = a[sortCol], bv = b[sortCol];
+    return typeof av === 'string' ? av.localeCompare(bv) * sortDir : (av - bv) * sortDir;
+  });
+
+  document.getElementById('rowCount').textContent = rows.length + ' account' + (rows.length!==1?'s':'');
+
+  if (!rows.length) {
+    document.getElementById('tableWrap').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <h3>No accounts match</h3>
+        <p>Try adjusting your filters</p>
+      </div>`;
+    return;
+  }
+
+  const maxBal = Math.max(...accounts.map(a=>a.balance));
+  const colLabel = { bank:'Bank / Account', accountNo:'Account No', type:'Type', balance:'Balance ↓', status:'Status' };
+
+  const makeTh = (col, label) => `
+    <th onclick="sortBy('${col}')" class="${sortCol===col?'sorted':''}">
+      ${label}<span class="sort-icon">${sortCol===col?(sortDir===-1?'▼':'▲'):'⇅'}</span>
+    </th>`;
+
+  const tableHTML = `
+    <table>
+      <thead><tr>
+        ${makeTh('bank','Bank / Account')}
+        ${makeTh('accountNo','Account No')}
+        ${makeTh('type','Type')}
+        ${makeTh('balance','Balance')}
+        <th>Share</th>
+        ${makeTh('status','Status')}
+      </tr></thead>
+      <tbody>
+        ${rows.map(a => {
+          const pct = (a.balance / maxBal * 100).toFixed(1);
+          const color = a.status === 'critical' ? 'var(--danger)' : a.status === 'low' ? 'var(--warn)' : 'var(--accent)';
+          const badge = a.status === 'critical' ? 'badge-crit' : a.status === 'low' ? 'badge-low' : 'badge-ok';
+          const badgeLabel = a.status === 'critical' ? 'Critical' : a.status === 'low' ? 'Low' : 'OK';
+          return `<tr>
+            <td><div class="bank-name">${a.bank}</div></td>
+            <td><span class="ac-no">${a.accountNo}</span></td>
+            <td style="color:var(--muted)">${a.type}</td>
+            <td class="num" style="color:${color};font-weight:500">${fmtFull(a.balance)}</td>
+            <td>
+              <div class="balance-bar-wrap">
+                <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+                <span style="font-family:var(--mono);font-size:10px;color:var(--muted);min-width:32px">${pct}%</span>
+              </div>
+            </td>
+            <td><span class="badge ${badge}">${badgeLabel}</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  document.getElementById('tableWrap').innerHTML = tableHTML;
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = -1; }
+  renderTable();
+}
+
+// ─── BANK FILTER ─────────────────────────────────────────────────────────────
+function populateBankFilter() {
+  const banks = [...new Set(accounts.map(a=>a.bank))].sort();
+  const sel = document.getElementById('bankFilter');
+  sel.innerHTML = '<option value="all">All Banks</option>' +
+    banks.map(b => `<option value="${b}">${b}</option>`).join('');
+}
+
+// ─── FULL RENDER ─────────────────────────────────────────────────────────────
+function renderAll() {
+  updateKPIs();
+  populateBankFilter();
+  renderTable();
+}
+
+// ─── IMPORT MODAL ─────────────────────────────────────────────────────────────
+let activeTab = 'paste';
+
+function openImport() { document.getElementById('modalBg').classList.add('show'); }
+function closeImport() { document.getElementById('modalBg').classList.remove('show'); }
+
+function switchTab(tab) {
+  activeTab = tab;
+  ['paste','file','sample'].forEach(t => {
+    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t===tab?'block':'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', ['paste','file','sample'][i]===tab);
+  });
+}
+
+// ─── XLS/XLSX PARSER ─────────────────────────────────────────────────────────
+function parseXLSData(workbook) {
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+  // Find header row (look for "Account Number" or "Customer Name")
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const rowStr = rows[i].join('|').toLowerCase();
+    if (rowStr.includes('account number') || rowStr.includes('customer name')) {
+      headerIdx = i;
+      break;
+    }
+  }
+  if (headerIdx === -1) return null;
+
+  const headers = rows[headerIdx].map(h => String(h).trim().toLowerCase());
+  const acIdx   = headers.findIndex(h => h.includes('account number') || h.includes('account no'));
+  const nameIdx = headers.findIndex(h => h.includes('customer name') || h.includes('name'));
+  const balIdx  = headers.findIndex(h => h.includes('available balance') || h.includes('balance'));
+  const curIdx  = headers.findIndex(h => h.includes('currency') || h.includes('ccy'));
+
+  if (acIdx === -1 || nameIdx === -1 || balIdx === -1) return null;
+
+  const parsed = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const acRaw = String(row[acIdx] || '').trim();
+    const name  = String(row[nameIdx] || '').trim();
+    if (!acRaw || !name) continue;
+
+    let bal = row[balIdx];
+    if (typeof bal === 'string') bal = parseFloat(bal.replace(/,/g, '')) || 0;
+    bal = parseFloat(bal) || 0;
+
+    const currency = curIdx >= 0 ? String(row[curIdx] || 'INR').trim() : 'INR';
+    const status = bal <= CRIT_THRESHOLD ? 'critical' : bal <= LOW_THRESHOLD ? 'low' : 'ok';
+    parsed.push({ bank: name, accountNo: acRaw, type: 'Current', balance: bal, currency, status });
+  }
+  return parsed;
+}
+
+function loadFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const statusEl = document.getElementById('importStatus');
+
+  if (ext === 'xls' || ext === 'xlsx') {
+    statusEl.textContent = '⏳ Reading ' + file.name + '…';
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = new Uint8Array(ev.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const parsed = parseXLSData(wb);
+        if (!parsed || !parsed.length) {
+          statusEl.textContent = '⚠ Could not find expected columns (Account Number, Customer Name, Available Balance).';
+          return;
+        }
+        // Store parsed directly and mark ready
+        window._xlsParsed = parsed;
+        statusEl.textContent = `✓ ${file.name} — ${parsed.length} accounts detected. Click "Import & Update Dashboard".`;
+      } catch (err) {
+        statusEl.textContent = '⚠ Error reading file: ' + err.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    // CSV / TXT fallback
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('csvInput').value = ev.target.result;
+      switchTab('paste');
+      statusEl.textContent = '✓ File loaded: ' + file.name;
+    };
+    reader.readAsText(file);
+  }
+}
+
+function processImport() {
+  let parsed = [];
+  if (activeTab === 'sample') {
+    parsed = SAMPLE;
+  } else if (window._xlsParsed && window._xlsParsed.length) {
+    parsed = window._xlsParsed;
+    window._xlsParsed = null;
+  } else {
+    const raw = document.getElementById('csvInput').value.trim();
+    if (!raw) {
+      document.getElementById('importStatus').textContent = '⚠ Please paste some data or upload an XLS/XLSX file first.';
+      return;
+    }
+    parsed = parseRaw(raw);
+    if (!parsed.length) {
+      document.getElementById('importStatus').textContent = '⚠ Could not parse data. Check the format.';
+      return;
+    }
+  }
+  accounts = parsed;
+  save(accounts);
+  updateTimestamp(new Date().toISOString());
+  renderAll();
+  closeImport();
+}
+
+function exportCSV() {
+  if (!accounts.length) return alert('No data to export.');
+  const rows = [['Bank Name','Account No','Type','Balance','Currency','Status']];
+  accounts.forEach(a => rows.push([a.bank, a.accountNo, a.type, a.balance, a.currency, a.status]));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'bank_balances_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// ─── DRAG & DROP ─────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor='var(--accent2)'; });
+  dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor='var(--border)'; });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor='var(--border)';
+    const file = e.dataTransfer.files[0];
+    if (file) { loadFile({target:{files:[file]}}); }
+  });
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+const loaded = load();
+if (loaded && accounts.length) {
+  renderAll();
+} else {
+  // Load real SPV data (21-Jan-2026)
+  accounts = SAMPLE;
+  save(accounts);
+  updateTimestamp('2026-01-21T00:00:00.000Z');
+  renderAll();
+}
+</script>
+</body>
+</html>
