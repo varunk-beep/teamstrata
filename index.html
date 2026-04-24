@@ -3,23 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPV Bank Dashboard — Login</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>STRATA SPV Bank Balance</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<!-- ═══════════════════════════════════════════════════════════════════════
-     CREDENTIALS — change these before deploying
-     ═══════════════════════════════════════════════════════════════════════ -->
 <script>
-  const USERS = {
-    'admin': 'admin'   // username : password  — add more lines for more users
-  };
+  const USERS = { 'admin': 'admin' };
 </script>
-
 <style>
-  /* ── LOGIN SCREEN ─────────────────────────────────────────────────── */
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  /* ── LOGIN SCREEN ──────────────────────────────────────────────────── */
   #loginScreen {
     position: fixed; inset: 0; z-index: 9999;
     background: #0d1117;
@@ -27,54 +20,34 @@
     font-family: 'Inter', sans-serif;
   }
   .login-box {
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 16px;
-    padding: 40px 36px;
-    width: 360px;
+    background: #161b22; border: 1px solid #30363d;
+    border-radius: 16px; padding: 40px 36px; width: 360px;
     box-shadow: 0 24px 64px rgba(0,0,0,.6);
   }
-  .login-logo {
-    text-align: center; margin-bottom: 28px;
-  }
-  .login-logo .icon { font-size: 36px; margin-bottom: 8px; }
+  .login-logo { text-align: center; margin-bottom: 28px; }
   .login-logo h2 { color: #e6edf3; font-size: 18px; font-weight: 600; margin: 0; }
   .login-logo p  { color: #7d8590; font-size: 12px; margin: 4px 0 0; }
-
   .login-field { margin-bottom: 16px; }
   .login-field label {
     display: block; font-size: 11px; font-weight: 600;
-    color: #7d8590; text-transform: uppercase; letter-spacing: .6px;
-    margin-bottom: 6px;
+    color: #7d8590; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px;
   }
   .login-field input {
-    width: 100%; padding: 10px 14px;
-    background: #0d1117; border: 1px solid #30363d;
+    width: 100%; padding: 10px 14px; background: #0d1117; border: 1px solid #30363d;
     border-radius: 8px; color: #e6edf3; font-size: 14px;
-    font-family: 'Inter', sans-serif; outline: none;
-    transition: border-color .15s;
+    font-family: 'Inter', sans-serif; outline: none; transition: border-color .15s;
   }
   .login-field input:focus { border-color: #388bfd; }
-
   .login-btn {
-    width: 100%; padding: 11px;
-    background: #388bfd; border: none; border-radius: 8px;
+    width: 100%; padding: 11px; background: #388bfd; border: none; border-radius: 8px;
     color: #fff; font-size: 14px; font-weight: 600;
-    font-family: 'Inter', sans-serif; cursor: pointer;
-    margin-top: 8px; transition: background .15s;
+    font-family: 'Inter', sans-serif; cursor: pointer; margin-top: 8px; transition: background .15s;
   }
   .login-btn:hover { background: #2f7de8; }
+  .login-error { color: #f85149; font-size: 12px; text-align: center; margin-top: 12px; min-height: 18px; }
+  .login-footer { text-align: center; margin-top: 20px; font-size: 11px; color: #7d8590; }
 
-  .login-error {
-    color: #f85149; font-size: 12px; text-align: center;
-    margin-top: 12px; min-height: 18px;
-  }
-  .login-footer {
-    text-align: center; margin-top: 20px;
-    font-size: 11px; color: #7d8590;
-  }
-</style>
-<style>
+  /* ── DASHBOARD ─────────────────────────────────────────────────────── */
   :root {
     --bg: #0d1117;
     --surface: #161b22;
