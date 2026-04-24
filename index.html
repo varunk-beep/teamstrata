@@ -7,17 +7,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-  const USERS  = { 'admin': 'admin' };
-  const ADMINS = ['admin'];
+  const USERS = { 'admin': 'admin' };
+  const ADMINS = ['admin']; // usernames who can import/update
 
-  // ── CONFIG — fill these two values ───────────────────────────────────────
-  const GITHUB_USER = 'varunk-beep';        // your GitHub username
-  const GITHUB_REPO = 'teamstrata';         // your repo name
-  const DATA_FILE   = 'spv_data.json';      // data file (will be created by you once)
+  // ── STEP 1: Paste your Google Apps Script Web App URL below ──────────────
+  // Leave blank until you set up the Google Sheet (see setup guide)
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyInKhgGRoCxnJhLSoIob0HrQIY7X1PRaxkITd9BMjbAsZujk99TNGnuA5ioFXct2YLhw/exec';
   // ─────────────────────────────────────────────────────────────────────────
-
-  // Raw URL everyone reads from — no CORS, always works
-  const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${DATA_FILE}`;
 </script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -488,30 +484,6 @@
 
 <!-- IMPORT MODAL -->
 <div class="modal-bg" id="modalBg" onclick="if(event.target===this)closeImport()">
-
-<!-- GITHUB SAVE GUIDE MODAL -->
-<div class="modal-bg" id="saveGuideBg" style="display:none;z-index:10000">
-  <div class="modal" style="max-width:500px">
-    <h2>📋 Save Data to GitHub</h2>
-    <p style="color:var(--muted);margin:12px 0 20px;line-height:1.6">
-      The JSON data has been <strong style="color:var(--accent)">copied to your clipboard</strong> and GitHub has opened in a new tab.<br><br>
-      In the GitHub tab:
-    </p>
-    <div style="background:var(--surface2);border-radius:10px;padding:16px 20px;line-height:2">
-      <div>1️⃣ &nbsp;Select <strong>all existing text</strong> in the editor (Ctrl+A)</div>
-      <div>2️⃣ &nbsp;<strong>Paste</strong> (Ctrl+V) the new JSON data</div>
-      <div>3️⃣ &nbsp;Click the green <strong>"Commit changes"</strong> button</div>
-      <div>4️⃣ &nbsp;Click <strong>"Commit changes"</strong> again to confirm</div>
-    </div>
-    <p style="color:var(--muted);font-size:12px;margin-top:16px">
-      ⏱ After committing, team members will see the updated data within <strong style="color:var(--text)">2–3 minutes</strong> (GitHub cache).
-    </p>
-    <div style="display:flex;gap:10px;margin-top:20px">
-      <button class="btn primary" onclick="recheckData()">✓ I've committed — Refresh now</button>
-      <button class="btn" onclick="document.getElementById('saveGuideBg').style.display='none'">Close</button>
-    </div>
-  </div>
-</div>
   <div class="modal">
     <h2>Import Balance Data</h2>
     <p>Paste your Excel data or upload a CSV file. Data will be saved for the team.</p>
@@ -582,65 +554,97 @@ function setSyncStatus(msg, color) {
   el.style.color = color || 'var(--muted)';
 }
 
-// ─── GITHUB DATA SYNC ────────────────────────────────────────────────────────
+// ─── GOOGLE SHEETS SYNC (CORS-safe) ──────────────────────────────────────────
 
-// READ — fetch spv_data.json from raw.githubusercontent.com (no CORS issues)
-async function fetchFromSheet() {
-  setSyncStatus('⏬ Loading…', 'var(--accent2)');
-  try {
-    const res = await fetch(RAW_URL + '?t=' + Date.now());
-    if (!res.ok) throw new Error('not found');
-    const obj = await res.json();
-    if (obj && obj.data && obj.data.length) {
-      setSyncStatus('✓ Live', 'var(--accent)');
-      return obj;
-    }
-    setSyncStatus('— No data yet', 'var(--muted)');
-    return null;
-  } catch(e) {
-    setSyncStatus('⚠ Using local data', 'var(--warn)');
-    return null;
-  }
-}
-
-// WRITE — opens GitHub web editor pre-filled with new JSON so admin can commit in one click
+// WRITE — hidden iframe form POST, bypasses CORS completely
 function pushToSheet(data, updatedAt) {
-  setSyncStatus('⏫ Opening GitHub to save…', 'var(--accent2)');
+  return new Promise((resolve) => {
+    if (!SHEET_URL) { resolve(false); return; }
+    setSyncStatus('⏫ Syncing to Google Sheet…', 'var(--accent2)');
+    try {
+      // Remove old elements
+      ['_spvFrame','_spvForm'].forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
 
-  const json = JSON.stringify({ data, updatedAt }, null, 2);
-  const encoded = encodeURIComponent(json);
+      // Hidden iframe as POST target
+      const iframe = document.createElement('iframe');
+      iframe.id = '_spvFrame'; iframe.name = '_spvFrame';
+      iframe.style.cssText = 'display:none;position:absolute;width:0;height:0';
+      document.body.appendChild(iframe);
 
-  // GitHub web editor URL — opens the file for editing with content pre-filled
-  const githubEditUrl = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/edit/main/${DATA_FILE}`;
+      // Hidden form
+      const form = document.createElement('form');
+      form.id = '_spvForm'; form.method = 'POST';
+      form.action = SHEET_URL; form.target = '_spvFrame';
+      form.style.display = 'none';
 
-  // Copy JSON to clipboard so admin can paste it in GitHub editor
-  navigator.clipboard.writeText(json).then(() => {
-    setSyncStatus('📋 JSON copied! Paste in GitHub tab that just opened.', 'var(--accent2)');
-  }).catch(() => {
-    setSyncStatus('⏫ Paste the JSON in the GitHub tab', 'var(--accent2)');
+      const input = document.createElement('input');
+      input.type = 'hidden'; input.name = 'postData';
+      input.value = JSON.stringify({ action: 'write', data, updatedAt, updatedBy: currentUser });
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+
+      // Wait 3s then verify by reading back
+      setTimeout(async () => {
+        ['_spvFrame','_spvForm'].forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+        const check = await fetchFromSheet();
+        if (check && check.data && check.data.length) {
+          setSyncStatus('✓ Synced — Google Sheet updated', 'var(--accent)');
+        } else {
+          setSyncStatus('✓ Sent — team refreshes in 5 min', 'var(--accent)');
+        }
+        resolve(true);
+      }, 3000);
+
+    } catch(err) {
+      setSyncStatus('⚠ Sync error: ' + err.message, 'var(--danger)');
+      resolve(false);
+    }
   });
-
-  // Open GitHub editor in new tab
-  window.open(githubEditUrl, '_blank');
-
-  // Show instruction modal
-  showSaveGuide();
 }
 
-function showSaveGuide() {
-  document.getElementById('saveGuideBg').style.display = 'flex';
-}
+// READ — JSONP, bypasses CORS, works in incognito for everyone
+function fetchFromSheet() {
+  return new Promise((resolve) => {
+    if (!SHEET_URL) { resolve(null); return; }
+    setSyncStatus('⏬ Loading from Google Sheet…', 'var(--accent2)');
 
-async function recheckData() {
-  document.getElementById('saveGuideBg').style.display = 'none';
-  setSyncStatus('⏬ Checking GitHub…', 'var(--accent2)');
-  const fresh = await fetchFromSheet();
-  if (fresh && fresh.data.length) {
-    accounts = fresh.data;
-    updateTimestamp(fresh.updatedAt);
-    renderAll();
-    setSyncStatus('✓ Live — team can see latest data', 'var(--accent)');
-  }
+    const cbName = '_cb_' + Date.now();
+    const script = document.createElement('script');
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      script.remove();
+      delete window[cbName];
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => {
+      setSyncStatus('⚠ Sheet timeout — using cached data', 'var(--warn)');
+      finish(null);
+    }, 10000);
+
+    window[cbName] = (obj) => {
+      if (obj && obj.data && obj.data.length) {
+        setSyncStatus('✓ Live', 'var(--accent)');
+        finish(obj);
+      } else {
+        setSyncStatus('— Sheet empty', 'var(--muted)');
+        finish(null);
+      }
+    };
+
+    script.onerror = () => {
+      setSyncStatus('⚠ Cannot reach Google Sheet', 'var(--warn)');
+      finish(null);
+    };
+
+    script.src = SHEET_URL + '?callback=' + cbName + '&t=' + Date.now();
+    document.head.appendChild(script);
+  });
 }
 
 // ─── STORAGE (localStorage fallback) ─────────────────────────────────────────
